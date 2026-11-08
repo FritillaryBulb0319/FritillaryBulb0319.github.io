@@ -1,0 +1,2028 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>贪吃蛇 · 多AI算法对战</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body {
+    background: radial-gradient(circle at 50% 0%, #16161c 0%, #08080a 60%);
+    color: #e6e6ea; min-height: 100vh;
+    display: flex; justify-content: center; align-items: center; padding: 16px;
+  }
+  .container {
+    display: flex; gap: 20px; align-items: flex-start;
+    flex-wrap: wrap; justify-content: center;
+    transition: transform 0.04s linear; will-change: transform;
+  }
+  .panel {
+    width: 300px; background: #1a1a1e; padding: 20px;
+    border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.55);
+    transition: width .28s cubic-bezier(.4, 0, .2, 1), padding .28s ease;
+  }
+  .panel.wide { width: 560px; }
+
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 8px;
+  }
+  .panel-head h3 {
+    color: #9ecdd8; letter-spacing: 1px; font-size: 17px;
+    flex: 1; margin: 0;
+  }
+  .collapse-btn {
+    flex: 0 0 auto;
+    width: 26px; height: 26px; padding: 0;
+    border: none; border-radius: 6px;
+    background: #28282e; color: #b8b8c2;
+    font-size: 11px; cursor: pointer;
+    transition: transform .25s ease, background .15s ease;
+  }
+  .collapse-btn:hover { background: #36363e; }
+
+  label { display: block; margin: 10px 0 4px; font-size: 14px; color: #b8b8c2; }
+  select, input[type="range"] {
+    width: 100%; padding: 8px 10px; border-radius: 8px; border: none;
+    background: #28282e; color: #e6e6ea; font-size: 15px; outline: none;
+  }
+  input[type="range"] { padding: 0; height: 26px; accent-color: #7a8494; }
+  select:disabled, input[type="range"]:disabled {
+    opacity: .42; cursor: not-allowed; filter: grayscale(.5);
+  }
+  .range-row { display: flex; align-items: center; gap: 10px; }
+  .range-val { width: 32px; text-align: center; color: #e8d9a8; font-variant-numeric: tabular-nums; }
+  .btn-group { margin-top: 16px; display: flex; gap: 10px; }
+  button {
+    flex: 1; padding: 10px; border: none; border-radius: 9px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: transform .12s ease, background .12s ease;
+  }
+  button:active:not(:disabled) { transform: scale(.94); }
+  #startBtn { background: #3a9e6a; color: #fff; }
+  #startBtn.paused { background: #b8902c; }
+  #resetBtn { background: #5668b8; color: #fff; }
+  button:disabled { background: #333338 !important; color: #8a8a92; cursor: not-allowed; }
+  .score-wrap { margin-top: 18px; display: flex; gap: 8px; }
+  .score-item { flex: 1; text-align: center; background: #242428; padding: 10px 6px; border-radius: 10px; }
+  .score-item .label { font-size: 13px; color: #a8a8b4; }
+  .score-item .val { font-size: 22px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .score-item.red  .val { color: #e06a6a; }
+  .score-item.blue .val { color: #6a9ae0; }
+  #status {
+    margin-top: 16px; padding: 12px; background: #222226; border-radius: 10px;
+    min-height: 62px; line-height: 1.5; text-align: center;
+    color: #e8d9a8; font-size: 14px; white-space: pre-line;
+  }
+
+  .ai-config-wrap { display: block; }
+  .panel.wide .ai-config-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 4px;
+  }
+  .ai-config-block {
+    background: #202024;
+    border-radius: 10px;
+    padding: 12px 14px;
+    border: 1px solid #2e2e34;
+  }
+  .ai-config-block h4 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-align: center;
+    font-weight: 700;
+  }
+  .ai-config-block h4.red   { color: #e06a6a; }
+  .ai-config-block h4.blue  { color: #6a9ae0; }
+  .ai-config-block label { margin-top: 8px; font-size: 13px; }
+  .ai-config-block select { font-size: 13px; padding: 7px 9px; }
+
+  .aggr-row { display: flex; align-items: center; gap: 6px; }
+  .aggr-row input[type="range"] { flex: 1; accent-color: #b8a25a; }
+  .aggr-label { font-size: 11px; color: #8a8a96; white-space: nowrap; }
+  .aggr-val {
+    text-align: center; font-size: 13px; margin-top: 2px;
+    color: #e8d9a8; font-variant-numeric: tabular-nums;
+  }
+
+  #mapPanel {
+    align-self: flex-end;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 18px 14px;
+  }
+  #mapPanel .panel-body { padding: 0; }
+  #mapPanel .map-head-bottom {
+    margin: 14px 0 0;
+    justify-content: center;
+    gap: 8px;
+  }
+  #mapPanel .map-head-bottom h3 {
+    color: #9ecdd8; font-size: 15px;
+    text-align: center; margin: 0;
+  }
+  #mapPanel.collapsed .map-head-bottom {
+    margin-top: 0;
+    flex-direction: column;
+    gap: 0;
+  }
+  #mapPanel.collapsed .map-head-bottom h3 { display: none; }
+  #mapPanel.collapsed .map-head-bottom .collapse-btn {
+    transform: rotate(180deg);
+    width: 100%;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .map-list {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-top: 10px;
+    max-height: 580px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .map-list::-webkit-scrollbar { width: 6px; }
+  .map-list::-webkit-scrollbar-track { background: transparent; }
+  .map-list::-webkit-scrollbar-thumb { background: #33333a; border-radius: 3px; }
+  .map-list.locked .map-card { cursor: not-allowed; opacity: .55; }
+  .map-card {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 8px;
+    background: #202024;
+    border: 1px solid #2e2e34;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+    text-align: left;
+    color: #e6e6ea;
+    font-family: inherit;
+    font-size: 14px;
+  }
+  .map-card:hover { border-color: #4a4a58; background: #26262c; }
+  .map-card.active {
+    border-color: #8a9aac;
+    background: #2a2a34;
+    box-shadow: 0 0 0 1px rgba(140, 170, 200, 0.2) inset;
+  }
+  .map-thumb {
+    width: 72px; height: 72px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    background: #0a0a10;
+    image-rendering: pixelated;
+  }
+  .map-info { flex: 1; overflow: hidden; }
+  .map-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; color: #e0e0e8; }
+  .map-desc { font-size: 11px; line-height: 1.35; color: #9a9aa8; }
+
+  .panel.collapsed,
+  .panel.collapsed.wide {
+    width: 132px;
+    padding: 14px 12px;
+  }
+  .panel.collapsed .panel-head {
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+  .panel.collapsed .panel-head h3 { display: none; }
+  .panel.collapsed .panel-body,
+  .panel.collapsed .score-wrap,
+  .panel.collapsed #status { display: none; }
+  .panel.collapsed .btn-group {
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 0;
+  }
+  .panel.collapsed .collapse-btn {
+    transform: rotate(180deg);
+    width: 100%;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .canvas-area {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #050506;
+    box-shadow: 0 0 30px rgba(120, 120, 150, 0.3);
+    transition: box-shadow 0.12s ease-out;
+  }
+  canvas#gameCanvas {
+    display: block;
+    background: #050506;
+    max-width: 100%;
+    height: auto;
+    transition: filter 0.35s ease;
+  }
+  canvas#gameCanvas.blurred {
+    filter: blur(7px) brightness(0.45) saturate(0.6);
+  }
+  .start-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(8, 8, 12, 0.32);
+    color: rgba(232, 232, 238, 0.94);
+    font-size: 26px; font-weight: 700; letter-spacing: 5px;
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.35s ease; z-index: 5;
+  }
+  .start-overlay.visible { opacity: 1; }
+  .start-overlay span {
+    text-shadow: 0 0 24px rgba(150, 190, 210, 0.55);
+    animation: breath 2.4s ease-in-out infinite;
+  }
+  @keyframes breath {
+    0%, 100% { opacity: 0.6; }
+    50%      { opacity: 1; }
+  }
+
+  .canvas-area.glow-red {
+    box-shadow:
+      0 0 0 2px rgba(220, 90, 90, 0.55),
+      0 0 30px rgba(200, 70, 70, 0.5),
+      0 0 60px rgba(170, 60, 60, 0.32);
+  }
+  .canvas-area.glow-blue {
+    box-shadow:
+      0 0 0 2px rgba(90, 140, 220, 0.55),
+      0 0 30px rgba(70, 120, 200, 0.5),
+      0 0 60px rgba(60, 100, 170, 0.32);
+  }
+  .canvas-area.glow-green {
+    box-shadow:
+      0 0 0 2px rgba(90, 210, 140, 0.5),
+      0 0 30px rgba(70, 190, 120, 0.45),
+      0 0 60px rgba(60, 160, 100, 0.3);
+  }
+  .canvas-area.glow-red.pulse   { animation: redPulse   1.2s ease-in-out infinite; }
+  .canvas-area.glow-blue.pulse  { animation: bluePulse  1.2s ease-in-out infinite; }
+  .canvas-area.glow-green.pulse { animation: greenPulse 1.2s ease-in-out infinite; }
+
+  @keyframes redPulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 2px rgba(220, 90, 90, 0.55),
+        0 0 30px rgba(200, 70, 70, 0.5),
+        0 0 60px rgba(170, 60, 60, 0.32);
+    }
+    50% {
+      box-shadow:
+        0 0 0 2px rgba(240, 120, 120, 0.85),
+        0 0 45px rgba(220, 90, 90, 0.78),
+        0 0 90px rgba(190, 70, 70, 0.55);
+    }
+  }
+  @keyframes bluePulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 2px rgba(90, 140, 220, 0.55),
+        0 0 30px rgba(70, 120, 200, 0.5),
+        0 0 60px rgba(60, 100, 170, 0.32);
+    }
+    50% {
+      box-shadow:
+        0 0 0 2px rgba(120, 170, 240, 0.85),
+        0 0 45px rgba(90, 140, 220, 0.78),
+        0 0 90px rgba(70, 120, 200, 0.55);
+    }
+  }
+  @keyframes greenPulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 2px rgba(90, 210, 140, 0.5),
+        0 0 30px rgba(70, 190, 120, 0.45),
+        0 0 60px rgba(60, 160, 100, 0.3);
+    }
+    50% {
+      box-shadow:
+        0 0 0 2px rgba(120, 230, 170, 0.85),
+        0 0 45px rgba(90, 210, 140, 0.78),
+        0 0 90px rgba(70, 180, 120, 0.55);
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container" id="shakeWrap">
+
+  <div class="panel" id="controlPanel">
+    <div class="panel-head">
+      <h3>对战设置</h3>
+      <button id="collapseBtn" class="collapse-btn" title="收起面板">◀</button>
+    </div>
+
+    <div class="panel-body" id="panelBody">
+      <label>对战模式</label>
+      <select id="gameMode">
+        <option value="pve">玩家 vs AI</option>
+        <option value="aivai">AI vs AI</option>
+      </select>
+
+      <div class="ai-config-wrap" id="aiConfigWrap">
+        <div class="ai-config-block" id="greenAIConfig" hidden>
+          <h4 class="red">🔴 红蛇 AI</h4>
+          <label>算法</label>
+          <select id="algoGreen">
+            <option value="bfs" title="BFS 广度优先：保证最短路径，稳定保守，不容易死">BFS 广度优先</option>
+            <option value="dfs" title="DFS 启发式：优先朝食物方向深入探索，有目标感">DFS 启发式</option>
+            <option value="dijkstra" title="Dijkstra：按加权代价搜索，给贴墙格加惩罚，倾向走开阔处">Dijkstra 加权</option>
+            <option value="astar" selected title="A* 寻路：代价 + 启发式，平衡速度与最优路径，综合最强">A* 寻路</option>
+            <option value="wastar" title="加权 A*：放大启发式权重，更快但略次优，冲刺型">加权 A*</option>
+            <option value="bidir" title="双向 BFS：起点终点同时搜索，长距离更快相遇">双向 BFS</option>
+            <option value="greedy" title="贪心 Greedy：只看离食物的直线距离，速度快但容易卡死角">贪心 Greedy</option>
+            <option value="avoid" title="回避（反向 BFS）：从威胁源反向扩散，远离敌人/墙/食物，不主动吃，只求苟活">回避（反向BFS）</option>
+            <option value="random" title="随机游走：⚡完全看不透之人⚡">随机游走</option>
+          </select>
+          <label>搜索深度</label>
+          <select id="diffGreen">
+            <option value="easy">浅（200 节点）</option>
+            <option value="normal" selected>中（400 节点）</option>
+            <option value="hard">深（800 节点）</option>
+          </select>
+          <label>性格</label>
+          <div class="aggr-row">
+            <span class="aggr-label">保守</span>
+            <input type="range" id="aggrGreen" min="0" max="100" value="50">
+            <span class="aggr-label">激进</span>
+          </div>
+          <div class="aggr-val" id="aggrGreenText">50</div>
+        </div>
+
+        <div class="ai-config-block" id="blueAIConfig">
+          <h4 class="blue">🔵 蓝蛇 AI</h4>
+          <label>算法</label>
+          <select id="algo">
+            <option value="bfs" title="BFS 广度优先：保证最短路径，稳定保守，不容易死">BFS 广度优先</option>
+            <option value="dfs" title="DFS 启发式：优先朝食物方向深入探索，有目标感">DFS 启发式</option>
+            <option value="dijkstra" title="Dijkstra：按加权代价搜索，给贴墙格加惩罚，倾向走开阔处">Dijkstra 加权</option>
+            <option value="astar" selected title="A* 寻路：代价 + 启发式，平衡速度与最优路径，综合最强">A* 寻路</option>
+            <option value="wastar" title="加权 A*：放大启发式权重，更快但略次优，冲刺型">加权 A*</option>
+            <option value="bidir" title="双向 BFS：起点终点同时搜索，长距离更快相遇">双向 BFS</option>
+            <option value="greedy" title="贪心 Greedy：只看离食物的直线距离，速度快但容易卡死角">贪心 Greedy</option>
+            <option value="avoid" title="回避（反向 BFS）：从威胁源反向扩散，远离敌人/墙/食物，不主动吃，只求苟活">回避（反向BFS）</option>
+            <option value="random" title="随机游走：⚡完全看不透之人⚡">随机游走</option>
+          </select>
+          <label>搜索深度</label>
+          <select id="difficulty">
+            <option value="easy">浅（200 节点）</option>
+            <option value="normal" selected>中（400 节点）</option>
+            <option value="hard">深（800 节点）</option>
+          </select>
+          <label>性格</label>
+          <div class="aggr-row">
+            <span class="aggr-label">保守</span>
+            <input type="range" id="aggrBlue" min="0" max="100" value="50">
+            <span class="aggr-label">激进</span>
+          </div>
+          <div class="aggr-val" id="aggrBlueText">50</div>
+        </div>
+      </div>
+
+      <label>食物数量</label>
+      <div class="range-row">
+        <input type="range" id="foodCountSlider" min="1" max="8" value="3">
+        <span class="range-val" id="foodCountText">3</span>
+      </div>
+
+      <label>游戏速度</label>
+      <div class="range-row">
+        <input type="range" id="speedSlider" min="1" max="10" step="1" value="7">
+        <span class="range-val" id="speedText">7</span>
+      </div>
+    </div>
+
+    <div class="btn-group" id="actionBtns">
+      <button id="startBtn">开始游戏</button>
+      <button id="resetBtn">重置</button>
+    </div>
+
+    <div class="score-wrap" id="scoreWrap">
+      <div class="score-item red"><div class="label">红蛇 🍎</div><div class="val" id="pScore">0</div></div>
+      <div class="score-item blue"><div class="label">蓝蛇 🍎</div><div class="val" id="aiScore">0</div></div>
+    </div>
+
+    <div id="status">等待开始</div>
+  </div>
+
+  <div class="canvas-area" id="canvasArea">
+    <canvas id="gameCanvas" width="720" height="720"></canvas>
+    <div class="start-overlay" id="startOverlay">
+      <span>游戏未开始</span>
+    </div>
+  </div>
+
+  <div class="panel" id="mapPanel">
+    <div class="panel-body" id="mapBody">
+      <label>边界循环</label>
+      <select id="boundaryWrap">
+        <option value="off">关闭（边界死亡）</option>
+        <option value="on">开启（另侧穿出）</option>
+      </select>
+      <div class="map-list" id="mapList"></div>
+    </div>
+    <div class="panel-head map-head-bottom">
+      <button id="mapCollapseBtn" class="collapse-btn" title="收起地图面板">▶</button>
+      <h3>地图设置</h3>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* =========================================================
+ *  0. 常量与工具
+ * ======================================================= */
+const GRID = 20;
+const COLS = 36;
+const ROWS = 36;
+const TOTAL = COLS * ROWS;
+
+const DIRS = Object.freeze([
+  { x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 },
+]);
+
+const DIFFICULTY = Object.freeze({
+  easy:   { searchLimit: 200 },
+  normal: { searchLimit: 400 },
+  hard:   { searchLimit: 800 },
+});
+
+const ALGO_LABEL = Object.freeze({
+  bfs: 'BFS', dfs: 'DFS', dijkstra: 'Dijkstra', greedy: '贪心',
+  astar: 'A*', wastar: '加权A*', bidir: '双向BFS',
+  avoid: '回避', random: '随机',
+});
+
+const EASTER_EGG_TITLE = '你为什么要这么做';
+
+const keyOf  = (p) => p.y * COLS + p.x;
+const same   = (a, b) => a.x === b.x && a.y === b.y;
+const inBounds = (p) => p.x >= 0 && p.y >= 0 && p.x < COLS && p.y < ROWS;
+const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
+
+function containsCell(cells, p) {
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i].x === p.x && cells[i].y === p.y) return true;
+  }
+  return false;
+}
+
+/* =========================================================
+ *  1. 位置推进（自动处理边界循环）
+ * ======================================================= */
+function advancePos(p, d) {
+  let x = p.x + d.x;
+  let y = p.y + d.y;
+  if (state.boundaryWrap) {
+    x = (x + COLS) % COLS;
+    y = (y + ROWS) % ROWS;
+  }
+  return { x, y };
+}
+
+function wrapDelta(a, b, size) {
+  const d = Math.abs(a - b);
+  return Math.min(d, size - d);
+}
+
+function heuristic(a, b) {
+  if (state.boundaryWrap) {
+    return wrapDelta(a.x, b.x, COLS) + wrapDelta(a.y, b.y, ROWS);
+  }
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+/* =========================================================
+ *  2. 最小堆
+ * ======================================================= */
+class MinHeap {
+  constructor(cmp) { this.arr = []; this.cmp = cmp; }
+  get size() { return this.arr.length; }
+  push(v) {
+    const a = this.arr;
+    a.push(v);
+    let i = a.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (this.cmp(a[i], a[p]) >= 0) break;
+      [a[i], a[p]] = [a[p], a[i]];
+      i = p;
+    }
+  }
+  pop() {
+    const a = this.arr;
+    if (a.length === 0) return undefined;
+    const top = a[0];
+    const last = a.pop();
+    if (a.length > 0) {
+      a[0] = last;
+      let i = 0;
+      const n = a.length;
+      for (;;) {
+        const l = i * 2 + 1, r = l + 1;
+        let m = i;
+        if (l < n && this.cmp(a[l], a[m]) < 0) m = l;
+        if (r < n && this.cmp(a[r], a[m]) < 0) m = r;
+        if (m === i) break;
+        [a[i], a[m]] = [a[m], a[i]];
+        i = m;
+      }
+    }
+    return top;
+  }
+}
+
+/* =========================================================
+ *  3. 蛇
+ * ======================================================= */
+class Snake {
+  constructor(cells, color, dir) {
+    this.body = cells.map(c => ({ x: c.x, y: c.y }));
+    this.color = color;
+    this.dir = dir ? { ...dir } : { x: 1, y: 0 };
+  }
+  get head() { return this.body[0]; }
+  nextHead() { return advancePos(this.head, this.dir); }
+  move(grow) {
+    this.body.unshift(this.nextHead());
+    if (!grow) this.body.pop();
+  }
+  bodyAfterMove(grow) {
+    return grow ? this.body : this.body.slice(0, -1);
+  }
+}
+
+function simulateBody(snake, dir, grow) {
+  const head = advancePos(snake.head, dir);
+  const rest = grow ? snake.body : snake.body.slice(0, -1);
+  return [head, ...rest.map(c => ({ x: c.x, y: c.y }))];
+}
+
+/* =========================================================
+ *  4. 地图定义
+ * ---------------------------------------------------------
+ *  压缩地图：外圈全障碍，仅剩正中 16×16 空间。
+ * ======================================================= */
+const MAP_DEFS = Object.freeze({
+  empty:      { name: '开阔平原', desc: '无障碍物的空旷战场，考验纯算法与性格' },
+  cross:      { name: '十字要塞', desc: '中央十字墙将战场分成四区，四向留缺口' },
+  corners:    { name: '四角堡垒', desc: '四角各有一块实心堡垒，中央区域开阔' },
+  ring:       { name: '中央回廊', desc: '中央环形方框，四面开口可穿越内部' },
+  maze:       { name: '蛇形迷宫', desc: '五道横向长墙左右交替开口，长程规划考验' },
+  chambers:   { name: '九宫密室', desc: '井字墙划分九个房间，每个路口有门可通' },
+  pillars:    { name: '规律柱林', desc: '周期性柱子阵，形成密集空隙，灵活穿行' },
+  spiral:     { name: '螺旋回廊', desc: '同心方框层层嵌套，需沿螺旋寻找出口' },
+  fortress:   { name: '中央要塞', desc: '中央空心方框，四面留门可进入内部' },
+  compressed: { name: '压缩地图', desc: '外圈全障碍，仅剩正中 16×16 空间，紧张刺激' },
+});
+
+const MAP_IDS = Object.freeze([
+  'empty', 'cross', 'corners', 'ring',
+  'maze', 'chambers', 'pillars', 'spiral', 'fortress', 'compressed'
+]);
+
+function buildObstacles(mapId) {
+  const set = new Set();
+  const add = (x, y) => {
+    if (x >= 0 && x < COLS && y >= 0 && y < ROWS) set.add(y * COLS + x);
+  };
+  const rect = (x0, y0, x1, y1) => {
+    for (let y = y0; y <= y1; y++)
+      for (let x = x0; x <= x1; x++) add(x, y);
+  };
+  const mx = Math.floor(COLS / 2), my = Math.floor(ROWS / 2);
+
+  switch (mapId) {
+    case 'empty': break;
+
+    case 'cross': {
+      for (let x = 3; x <= COLS - 4; x++) {
+        if (Math.abs(x - mx) <= 1) continue;
+        add(x, my);
+      }
+      for (let y = 3; y <= ROWS - 4; y++) {
+        if (Math.abs(y - my) <= 1) continue;
+        add(mx, y);
+      }
+      break;
+    }
+
+    case 'corners': {
+      const s = 5;
+      rect(2, 2, 2 + s - 1, 2 + s - 1);
+      rect(COLS - 2 - s, 2, COLS - 3, 2 + s - 1);
+      rect(2, ROWS - 2 - s, 2 + s - 1, ROWS - 3);
+      rect(COLS - 2 - s, ROWS - 2 - s, COLS - 3, ROWS - 3);
+      break;
+    }
+
+    case 'ring': {
+      const r = 4;
+      const x0 = mx - r, x1 = mx + r, y0 = my - r, y1 = my + r;
+      for (let x = x0; x <= x1; x++) { add(x, y0); add(x, y1); }
+      for (let y = y0; y <= y1; y++) { add(x0, y); add(x1, y); }
+      for (let x = mx - 1; x <= mx + 1; x++) {
+        set.delete(y0 * COLS + x);
+        set.delete(y1 * COLS + x);
+      }
+      for (let y = my - 1; y <= my + 1; y++) {
+        set.delete(y * COLS + x0);
+        set.delete(y * COLS + x1);
+      }
+      break;
+    }
+
+    case 'maze': {
+      const wallYs = [6, 12, 18, 24, 30];
+      wallYs.forEach((wy, i) => {
+        const gapX = (i % 2 === 0) ? COLS - 8 : 7;
+        for (let x = 3; x <= COLS - 4; x++) {
+          if (Math.abs(x - gapX) <= 1) continue;
+          add(x, wy);
+        }
+      });
+      break;
+    }
+
+    case 'chambers': {
+      const w1 = 12, w2 = 24;
+      const h1 = 12, h2 = 24;
+      for (let y = 2; y < ROWS - 2; y++) {
+        if (Math.abs(y - h1) <= 1) continue;
+        if (Math.abs(y - h2) <= 1) continue;
+        if (Math.abs(y - 6)  <= 1) continue;
+        if (Math.abs(y - 30) <= 1) continue;
+        add(w1, y);
+        add(w2, y);
+      }
+      for (let x = 2; x < COLS - 2; x++) {
+        if (Math.abs(x - w1) <= 1) continue;
+        if (Math.abs(x - w2) <= 1) continue;
+        if (Math.abs(x - 6)  <= 1) continue;
+        if (Math.abs(x - 30) <= 1) continue;
+        add(x, h1);
+        add(x, h2);
+      }
+      break;
+    }
+
+    case 'pillars': {
+      for (let y = 5; y < ROWS - 2; y += 5) {
+        for (let x = 5; x < COLS - 2; x += 5) {
+          add(x, y);
+          add(x + 1, y);
+          add(x, y + 1);
+          add(x + 1, y + 1);
+        }
+      }
+      break;
+    }
+
+    case 'spiral': {
+      const layers = [
+        { inset: 5,  gap: 'right'  },
+        { inset: 9,  gap: 'bottom' },
+        { inset: 13, gap: 'left'   },
+      ];
+      layers.forEach(({ inset, gap }) => {
+        const x0 = inset, x1 = COLS - 1 - inset;
+        const y0 = inset, y1 = ROWS - 1 - inset;
+        if (x0 >= x1 || y0 >= y1) return;
+        for (let x = x0; x <= x1; x++) {
+          add(x, y0);
+          add(x, y1);
+        }
+        for (let y = y0; y <= y1; y++) {
+          add(x0, y);
+          add(x1, y);
+        }
+        const cx = Math.floor((x0 + x1) / 2);
+        const cy = Math.floor((y0 + y1) / 2);
+        if (gap === 'top') {
+          for (let x = cx - 1; x <= cx + 1; x++) set.delete(y0 * COLS + x);
+        } else if (gap === 'bottom') {
+          for (let x = cx - 1; x <= cx + 1; x++) set.delete(y1 * COLS + x);
+        } else if (gap === 'left') {
+          for (let y = cy - 1; y <= cy + 1; y++) set.delete(y * COLS + x0);
+        } else if (gap === 'right') {
+          for (let y = cy - 1; y <= cy + 1; y++) set.delete(y * COLS + x1);
+        }
+      });
+      break;
+    }
+
+    case 'fortress': {
+      const r = 7;
+      const x0 = mx - r, x1 = mx + r;
+      const y0 = my - r, y1 = my + r;
+      for (let x = x0; x <= x1; x++) {
+        add(x, y0);
+        add(x, y1);
+      }
+      for (let y = y0; y <= y1; y++) {
+        add(x0, y);
+        add(x1, y);
+      }
+      for (let x = mx - 1; x <= mx + 1; x++) {
+        set.delete(y0 * COLS + x);
+        set.delete(y1 * COLS + x);
+      }
+      for (let y = my - 1; y <= my + 1; y++) {
+        set.delete(y * COLS + x0);
+        set.delete(y * COLS + x1);
+      }
+      for (let i = -3; i <= 3; i += 3) {
+        if (i === 0) continue;
+        add(mx + i, my);
+        add(mx, my + i);
+      }
+      break;
+    }
+
+    /* ★ 压缩地图 —— 外圈全障碍，正中 16×16 空间 */
+    case 'compressed': {
+      const INNER = 16;
+      const ix0 = Math.floor((COLS - INNER) / 2);   // 10
+      const iy0 = Math.floor((ROWS - INNER) / 2);   // 10
+      const ix1 = ix0 + INNER - 1;                   // 25
+      const iy1 = iy0 + INNER - 1;                   // 25
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          if (x < ix0 || x > ix1 || y < iy0 || y > iy1) add(x, y);
+        }
+      }
+      break;
+    }
+  }
+  return set;
+}
+
+function getSpawns(mapId) {
+  switch (mapId) {
+    case 'corners':
+      return {
+        red:  { body: [{x:10,y:3},{x:9,y:3},{x:8,y:3}], dir: {x:1,y:0} },
+        blue: { body: [{x:COLS-11,y:ROWS-4},{x:COLS-10,y:ROWS-4},{x:COLS-9,y:ROWS-4}], dir: {x:-1,y:0} },
+      };
+    case 'ring':
+      return {
+        red:  { body: [{x:3,y:3},{x:2,y:3},{x:1,y:3}], dir: {x:1,y:0} },
+        blue: { body: [{x:COLS-4,y:ROWS-4},{x:COLS-3,y:ROWS-4},{x:COLS-2,y:ROWS-4}], dir: {x:-1,y:0} },
+      };
+    /* ★ 压缩地图（16×16 区域 x:10~25, y:10~25）：
+     *   红蛇在左上角朝右，蓝蛇在右下角朝左，两者相距较远
+     */
+    case 'compressed':
+      return {
+        red:  { body: [{x:12,y:11},{x:11,y:11},{x:10,y:11}], dir: {x:1,y:0} },
+        blue: { body: [{x:23,y:24},{x:24,y:24},{x:25,y:24}], dir: {x:-1,y:0} },
+      };
+    default:
+      return {
+        red:  { body: [{x:3,y:3},{x:2,y:3},{x:1,y:3}], dir: {x:1,y:0} },
+        blue: { body: [{x:COLS-4,y:ROWS-4},{x:COLS-3,y:ROWS-4},{x:COLS-2,y:ROWS-4}], dir: {x:-1,y:0} },
+      };
+  }
+}
+
+/* =========================================================
+ *  5. 通行性 & 空间评估
+ * ======================================================= */
+function passable(cell, self, other) {
+  if (!inBounds(cell)) return false;
+  if (state.obstacles.has(keyOf(cell))) return false;
+  const selfBody = self.body;
+  for (let i = 1; i < selfBody.length; i++) {
+    if (selfBody[i].x === cell.x && selfBody[i].y === cell.y) return false;
+  }
+  for (let i = 0; i < other.body.length; i++) {
+    if (other.body[i].x === cell.x && other.body[i].y === cell.y) return false;
+  }
+  return true;
+}
+
+function floodFill(start, selfBody, otherBody) {
+  const blocked = new Set();
+  for (let i = 1; i < selfBody.length; i++) blocked.add(keyOf(selfBody[i]));
+  for (let i = 0; i < otherBody.length; i++) blocked.add(keyOf(otherBody[i]));
+
+  const visited = new Set([keyOf(start)]);
+  const stack = [start];
+
+  while (stack.length) {
+    const cur = stack.pop();
+    for (let i = 0; i < 4; i++) {
+      const np = advancePos(cur, DIRS[i]);
+      if (!inBounds(np)) continue;
+      const k = keyOf(np);
+      if (visited.has(k) || blocked.has(k) || state.obstacles.has(k)) continue;
+      visited.add(k);
+      stack.push(np);
+    }
+  }
+  return visited.size;
+}
+
+/* =========================================================
+ *  6. 寻路算法
+ * ======================================================= */
+function rebuildPath(parent, endKey) {
+  const path = [];
+  let k = endKey;
+  while (parent.has(k)) {
+    const node = parent.get(k);
+    path.push(node.dir);
+    k = node.prev;
+  }
+  return path.reverse();
+}
+
+function searchBFS(start, goal, self, other, limit) {
+  const queue = [{ pos: start }];
+  const visited = new Set([keyOf(start)]);
+  const parent = new Map();
+  let cursor = 0, steps = 0;
+  while (cursor < queue.length && steps++ < limit) {
+    const cur = queue[cursor++];
+    const ck = keyOf(cur.pos);
+    if (same(cur.pos, goal)) return rebuildPath(parent, ck);
+    for (let i = 0; i < 4; i++) {
+      const d = DIRS[i];
+      const np = advancePos(cur.pos, d);
+      if (!inBounds(np)) continue;
+      const nk = keyOf(np);
+      if (visited.has(nk) || !passable(np, self, other)) continue;
+      visited.add(nk);
+      parent.set(nk, { prev: ck, dir: d });
+      queue.push({ pos: np });
+    }
+  }
+  return null;
+}
+
+function searchDFS(start, goal, self, other, limit) {
+  const stack = [{ pos: start }];
+  const visited = new Set([keyOf(start)]);
+  const parent = new Map();
+  let steps = 0;
+  while (stack.length && steps++ < limit) {
+    const cur = stack.pop();
+    const ck = keyOf(cur.pos);
+    if (same(cur.pos, goal)) return rebuildPath(parent, ck);
+    const cand = [];
+    for (let i = 0; i < 4; i++) {
+      const d = DIRS[i];
+      const np = advancePos(cur.pos, d);
+      if (!inBounds(np)) continue;
+      const nk = keyOf(np);
+      if (visited.has(nk) || !passable(np, self, other)) continue;
+      visited.add(nk);
+      parent.set(nk, { prev: ck, dir: d });
+      cand.push({ np, h: heuristic(np, goal) });
+    }
+    cand.sort((a, b) => b.h - a.h);
+    for (let i = 0; i < cand.length; i++) stack.push({ pos: cand[i].np });
+  }
+  return null;
+}
+
+function cellCost(p) {
+  let walls = 0;
+  for (let i = 0; i < 4; i++) {
+    const n = advancePos(p, DIRS[i]);
+    if (!inBounds(n)) walls++;
+    else if (state.obstacles.has(keyOf(n))) walls++;
+  }
+  return 1 + walls * 0.4;
+}
+
+function searchDijkstra(start, goal, self, other, limit) {
+  const open = new MinHeap((a, b) => a.cost - b.cost);
+  open.push({ pos: start, cost: 0 });
+  const dist = new Map([[keyOf(start), 0]]);
+  const parent = new Map();
+  const closed = new Set();
+  let steps = 0;
+
+  while (open.size > 0 && steps++ < limit) {
+    const cur = open.pop();
+    const ck = keyOf(cur.pos);
+    if (closed.has(ck)) continue;
+    closed.add(ck);
+
+    if (same(cur.pos, goal)) return rebuildPath(parent, ck);
+
+    for (let i = 0; i < 4; i++) {
+      const d = DIRS[i];
+      const np = advancePos(cur.pos, d);
+      if (!inBounds(np)) continue;
+      const nk = keyOf(np);
+      if (closed.has(nk) || !passable(np, self, other)) continue;
+      const nc = cur.cost + cellCost(np);
+      if (!dist.has(nk) || nc < dist.get(nk)) {
+        dist.set(nk, nc);
+        parent.set(nk, { prev: ck, dir: d });
+        open.push({ pos: np, cost: nc });
+      }
+    }
+  }
+  return null;
+}
+
+function searchGreedy(start, goal, self, other, limit) {
+  const open = new MinHeap((a, b) => a.h - b.h);
+  open.push({ pos: start, h: heuristic(start, goal) });
+  const visited = new Set([keyOf(start)]);
+  const parent = new Map();
+  let steps = 0;
+  while (open.size > 0 && steps++ < limit) {
+    const cur = open.pop();
+    const ck = keyOf(cur.pos);
+    if (same(cur.pos, goal)) return rebuildPath(parent, ck);
+    for (let i = 0; i < 4; i++) {
+      const d = DIRS[i];
+      const np = advancePos(cur.pos, d);
+      if (!inBounds(np)) continue;
+      const nk = keyOf(np);
+      if (visited.has(nk) || !passable(np, self, other)) continue;
+      visited.add(nk);
+      parent.set(nk, { prev: ck, dir: d });
+      open.push({ pos: np, h: heuristic(np, goal) });
+    }
+  }
+  return null;
+}
+
+function searchAStar(start, goal, self, other, limit) {
+  const open = new MinHeap((a, b) => a.f - b.f);
+  open.push({ pos: start, g: 0, f: heuristic(start, goal) });
+  const gScore = new Map([[keyOf(start), 0]]);
+  const parent = new Map();
+  const closed = new Set();
+  let steps = 0;
+  while (open.size > 0 && steps++ < limit) {
+    const cur = open.pop();
+    const ck = keyOf(cur.pos);
+    if (closed.has(ck)) continue;
+    closed.add(ck);
+    if (same(cur.pos, goal)) return rebuildPath(parent, ck);
+    const g = gScore.get(ck);
+    for (let i = 0; i < 4; i++) {
+      const d = DIRS[i];
+      const np = advancePos(cur.pos, d);
+      if (!inBounds(np)) continue;
+      const nk = keyOf(np);
+      if (closed.has(nk) || !passable(np, self, other)) continue;
+      const ng = g + 1;
+      if (gScore.has(nk) && gScore.get(nk) <= ng) continue;
+      gScore.set(nk, ng);
+      parent.set(nk, { prev: ck, dir: d });
+      open.push({ pos: np, g: ng, f: ng + heuristic(np, goal) });
+    }
+  }
+  return null;
+}
+
+function searchWeightedAStar(start, goal, self, other, limit) {
+  const W = 1.7;
+  const open = new MinHeap((a, b) => a.f - b.f);
+  open.push({ pos: start, g: 0, f: W * heuristic(start, goal) });
+  const gScore = new Map([[keyOf(start), 0]]);
+  const parent = new Map();
+  const closed = new Set();
+  let steps = 0;
+  while (open.size > 0 && steps++ < limit) {
+    const cur = open.pop();
+    const ck = keyOf(cur.pos);
+    if (closed.has(ck)) continue;
+    closed.add(ck);
+    if (same(cur.pos, goal)) return rebuildPath(parent, ck);
+    const g = gScore.get(ck);
+    for (let i = 0; i < 4; i++) {
+      const d = DIRS[i];
+      const np = advancePos(cur.pos, d);
+      if (!inBounds(np)) continue;
+      const nk = keyOf(np);
+      if (closed.has(nk) || !passable(np, self, other)) continue;
+      const ng = g + 1;
+      if (gScore.has(nk) && gScore.get(nk) <= ng) continue;
+      gScore.set(nk, ng);
+      parent.set(nk, { prev: ck, dir: d });
+      open.push({ pos: np, g: ng, f: ng + W * heuristic(np, goal) });
+    }
+  }
+  return null;
+}
+
+function searchBidirectionalBFS(start, goal, self, other, limit) {
+  if (same(start, goal)) return [];
+
+  const qF = [{ pos: start }];
+  const qB = [{ pos: goal }];
+  const visF = new Map([[keyOf(start), null]]);
+  const visB = new Map([[keyOf(goal), null]]);
+  let steps = 0;
+  let meetingKey = -1;
+
+  while (qF.length > 0 && qB.length > 0 && steps++ < limit) {
+    const forward = qF.length <= qB.length;
+
+    if (forward) {
+      const cur = qF.shift();
+      const ck = keyOf(cur.pos);
+      for (let i = 0; i < 4; i++) {
+        const d = DIRS[i];
+        const np = advancePos(cur.pos, d);
+        if (!inBounds(np)) continue;
+        const nk = keyOf(np);
+        if (visF.has(nk) || !passable(np, self, other)) continue;
+        visF.set(nk, { prev: ck, dir: d });
+        if (visB.has(nk)) { meetingKey = nk; break; }
+        qF.push({ pos: np });
+      }
+    } else {
+      const cur = qB.shift();
+      const ck = keyOf(cur.pos);
+      for (let i = 0; i < 4; i++) {
+        const d = DIRS[i];
+        const np = advancePos(cur.pos, d);
+        if (!inBounds(np)) continue;
+        const nk = keyOf(np);
+        if (visB.has(nk) || !passable(np, self, other)) continue;
+        visB.set(nk, { prev: ck, dir: d });
+        if (visF.has(nk)) { meetingKey = nk; break; }
+        qB.push({ pos: np });
+      }
+    }
+
+    if (meetingKey !== -1) break;
+  }
+
+  if (meetingKey === -1) return null;
+
+  const path = [];
+  let k = meetingKey;
+  const frontRev = [];
+  while (visF.get(k)) {
+    const node = visF.get(k);
+    frontRev.push(node.dir);
+    k = node.prev;
+  }
+  for (let i = frontRev.length - 1; i >= 0; i--) path.push(frontRev[i]);
+
+  k = meetingKey;
+  const backRev = [];
+  while (visB.get(k)) {
+    const node = visB.get(k);
+    backRev.push(node.dir);
+    k = node.prev;
+  }
+  backRev.reverse();
+  for (let i = 0; i < backRev.length; i++) {
+    path.push({ x: -backRev[i].x, y: -backRev[i].y });
+  }
+
+  return path;
+}
+
+/* =========================================================
+ *  ★ 回避（反向 BFS）—— 威胁场 + 规避
+ * ======================================================= */
+function buildThreatField(other, limit) {
+  const dist = new Map();
+  const queue = [];
+
+  const seed = (p) => {
+    const k = keyOf(p);
+    if (dist.has(k)) return;
+    if (state.obstacles.has(k)) return;
+    dist.set(k, 1);
+    queue.push(p);
+  };
+
+  if (!state.boundaryWrap) {
+    for (let x = 0; x < COLS; x++) {
+      seed({ x, y: 0 });
+      seed({ x, y: ROWS - 1 });
+    }
+    for (let y = 0; y < ROWS; y++) {
+      seed({ x: 0, y });
+      seed({ x: COLS - 1, y });
+    }
+  }
+
+  state.obstacles.forEach(k => {
+    const x = k % COLS, y = (k / COLS) | 0;
+    for (let i = 0; i < 4; i++) {
+      const np = advancePos({ x, y }, DIRS[i]);
+      if (!inBounds(np)) continue;
+      seed(np);
+    }
+  });
+
+  for (const c of other.body) {
+    for (let i = 0; i < 4; i++) {
+      const np = advancePos(c, DIRS[i]);
+      if (!inBounds(np)) continue;
+      seed(np);
+    }
+  }
+
+  let cursor = 0;
+  while (cursor < queue.length && dist.size < limit) {
+    const cur = queue[cursor++];
+    const cd = dist.get(keyOf(cur));
+    for (let i = 0; i < 4; i++) {
+      const np = advancePos(cur, DIRS[i]);
+      if (!inBounds(np)) continue;
+      const nk = keyOf(np);
+      if (dist.has(nk) || state.obstacles.has(nk)) continue;
+      if (containsCell(other.body, np)) continue;
+      dist.set(nk, cd + 1);
+      queue.push(np);
+    }
+  }
+
+  return dist;
+}
+
+function computeAvoidDir(snake, other, cfg, aggressiveness) {
+  const aggr = clamp01(aggressiveness);
+  const start = snake.head;
+
+  const threatR = 4 + (1 - aggr) * 10;
+  const foodR   = 3 + (1 - aggr) * 8;
+
+  const threatField = buildThreatField(other, cfg.searchLimit);
+
+  let bestDir = null;
+  let bestScore = -Infinity;
+
+  for (const d of DIRS) {
+    const nh = advancePos(start, d);
+    if (!inBounds(nh)) continue;
+    if (state.obstacles.has(keyOf(nh))) continue;
+    if (containsCell(snake.body.slice(0, -1), nh)) continue;
+    if (containsCell(other.body.slice(0, -1), nh)) continue;
+    if (same(nh, other.head)) continue;
+
+    const nk = keyOf(nh);
+    const threatDist = threatField.has(nk) ? threatField.get(nk) : 99;
+    let foodDist = 99;
+    for (const f of state.food) {
+      const fd = heuristic(nh, f);
+      if (fd < foodDist) foodDist = fd;
+    }
+
+    let penalty = 0;
+    if (threatDist < threatR) penalty += (threatR - threatDist) ** 2;
+    if (foodDist  < foodR)   penalty += (foodR  - foodDist) ** 2;
+
+    const simBody = simulateBody(snake, d, false);
+    const space = floodFill(nh, simBody, other.body);
+    const spaceBonus = Math.min(space, 200) * 0.6;
+
+    const score = -penalty * 2 + spaceBonus;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestDir = d;
+    }
+  }
+
+  return bestDir;
+}
+
+function randomWalkDir(snake, other) {
+  const start = snake.head;
+  const safe = [];
+  for (let i = 0; i < 4; i++) {
+    const d = DIRS[i];
+    const nh = advancePos(start, d);
+    if (!inBounds(nh)) continue;
+    if (state.obstacles.has(keyOf(nh))) continue;
+    if (containsCell(snake.body.slice(0, -1), nh)) continue;
+    if (containsCell(other.body.slice(0, -1), nh)) continue;
+    safe.push(d);
+  }
+  if (safe.length === 0) return null;
+  return safe[Math.floor(Math.random() * safe.length)];
+}
+
+const SEARCHERS = Object.freeze({
+  bfs: searchBFS,
+  dfs: searchDFS,
+  dijkstra: searchDijkstra,
+  greedy: searchGreedy,
+  astar: searchAStar,
+  wastar: searchWeightedAStar,
+  bidir: searchBidirectionalBFS,
+});
+
+/* =========================================================
+ *  7. 游戏状态
+ * ======================================================= */
+const state = {
+  mode: 'pve',
+  mapId: 'empty',
+  obstacles: new Set(),
+  boundaryWrap: false,
+  running: false,
+  paused: false,
+  timer: null,
+  player: null,
+  ai: null,
+  food: [],
+  eaten: { player: 0, ai: 0 },
+  wins:  { player: 0, ai: 0 },
+  foodCount: 3,
+  inputQueue: [],
+};
+
+/* =========================================================
+ *  8. DOM
+ * ======================================================= */
+const canvas       = document.getElementById('gameCanvas');
+const ctx          = canvas.getContext('2d');
+const shakeWrap    = document.getElementById('shakeWrap');
+const canvasArea   = document.getElementById('canvasArea');
+const startOverlay = document.getElementById('startOverlay');
+const controlPanel = document.getElementById('controlPanel');
+const mapPanel     = document.getElementById('mapPanel');
+const collapseBtn  = document.getElementById('collapseBtn');
+const mapCollapseBtn = document.getElementById('mapCollapseBtn');
+const mapListEl    = document.getElementById('mapList');
+const boundaryWrapSel = document.getElementById('boundaryWrap');
+const startBtn     = document.getElementById('startBtn');
+const resetBtn     = document.getElementById('resetBtn');
+const statusEl     = document.getElementById('status');
+const gameModeSel  = document.getElementById('gameMode');
+const greenAIConfig= document.getElementById('greenAIConfig');
+const algoGreenSel = document.getElementById('algoGreen');
+const diffGreenSel = document.getElementById('diffGreen');
+const aggrGreenInp = document.getElementById('aggrGreen');
+const aggrGreenTxt = document.getElementById('aggrGreenText');
+const algoSelect   = document.getElementById('algo');
+const diffSelect   = document.getElementById('difficulty');
+const aggrBlueInp  = document.getElementById('aggrBlue');
+const aggrBlueTxt  = document.getElementById('aggrBlueText');
+const foodSlider   = document.getElementById('foodCountSlider');
+const foodText     = document.getElementById('foodCountText');
+const speedSlider  = document.getElementById('speedSlider');
+const speedText    = document.getElementById('speedText');
+const pScoreEl     = document.getElementById('pScore');
+const aiScoreEl    = document.getElementById('aiScore');
+
+/* =========================================================
+ *  9. 蒙版 & 光效
+ * ======================================================= */
+let glowTimeoutId = null;
+
+function showStartOverlay(show) {
+  startOverlay.classList.toggle('visible', show);
+  canvas.classList.toggle('blurred', show);
+}
+
+const GLOW_CLASSES = ['glow-red', 'glow-blue', 'glow-green', 'pulse'];
+
+function setCanvasGlow(type, { pulse = false, duration = 0 } = {}) {
+  if (glowTimeoutId !== null) {
+    clearTimeout(glowTimeoutId);
+    glowTimeoutId = null;
+  }
+  canvasArea.classList.remove(...GLOW_CLASSES);
+  if (!type) return;
+  void canvasArea.offsetWidth;
+  canvasArea.classList.add(`glow-${type}`);
+  if (pulse) canvasArea.classList.add('pulse');
+  if (duration > 0) {
+    glowTimeoutId = setTimeout(() => {
+      canvasArea.classList.remove(...GLOW_CLASSES);
+      glowTimeoutId = null;
+    }, duration);
+  }
+}
+
+function clearCanvasGlow() {
+  if (glowTimeoutId !== null) {
+    clearTimeout(glowTimeoutId);
+    glowTimeoutId = null;
+  }
+  canvasArea.classList.remove(...GLOW_CLASSES);
+}
+
+/* =========================================================
+ * 10. 速度 / 布局 / 设置锁定
+ * ======================================================= */
+function currentInterval() {
+  const v = Number(speedSlider.value) || 7;
+  return 280 - (v - 1) * 25;
+}
+
+function updateAlgoDependentControls() {
+  if (state.running) return;
+
+  const greenRandom = algoGreenSel.value === 'random';
+  diffGreenSel.disabled = greenRandom;
+  aggrGreenInp.disabled = greenRandom;
+  diffGreenSel.title = greenRandom ? EASTER_EGG_TITLE : '';
+  aggrGreenInp.title = greenRandom ? EASTER_EGG_TITLE : '';
+
+  const blueRandom = algoSelect.value === 'random';
+  diffSelect.disabled = blueRandom;
+  aggrBlueInp.disabled = blueRandom;
+  diffSelect.title = blueRandom ? EASTER_EGG_TITLE : '';
+  aggrBlueInp.title = blueRandom ? EASTER_EGG_TITLE : '';
+}
+
+function setSettingsLocked(locked) {
+  gameModeSel.disabled  = locked;
+  algoSelect.disabled   = locked;
+  algoGreenSel.disabled = locked;
+  foodSlider.disabled   = locked;
+  boundaryWrapSel.disabled = locked;
+  mapListEl.classList.toggle('locked', locked);
+
+  if (locked) {
+    diffSelect.disabled = true;
+    diffGreenSel.disabled = true;
+    aggrGreenInp.disabled = true;
+    aggrBlueInp.disabled = true;
+    diffSelect.title = '';
+    diffGreenSel.title = '';
+    aggrGreenInp.title = '';
+    aggrBlueInp.title = '';
+  } else {
+    updateAlgoDependentControls();
+  }
+}
+
+function updateModeLayout() {
+  const isAivai = gameModeSel.value === 'aivai';
+  greenAIConfig.hidden = !isAivai;
+  controlPanel.classList.toggle('wide', isAivai);
+}
+
+function syncModeFromDOM() {
+  state.mode = gameModeSel.value;
+  updateModeLayout();
+}
+
+function readAggr(inputEl) {
+  return clamp01((Number(inputEl.value) || 0) / 100);
+}
+
+function updateAlgoSelectTitle(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  sel.title = opt ? (opt.title || opt.textContent.trim()) : '';
+}
+
+/* =========================================================
+ * 11. 食物生成
+ * ======================================================= */
+function isCellFreeForFood(p) {
+  if (state.obstacles.has(keyOf(p))) return false;
+  if (state.player && containsCell(state.player.body, p)) return false;
+  if (state.ai && containsCell(state.ai.body, p)) return false;
+  if (state.food.some(f => same(f, p))) return false;
+  return true;
+}
+
+function spawnOneFood() {
+  const maxAttempts = TOTAL * 4;
+  for (let i = 0; i < maxAttempts; i++) {
+    const p = {
+      x: Math.floor(Math.random() * COLS),
+      y: Math.floor(Math.random() * ROWS),
+    };
+    if (isCellFreeForFood(p)) return p;
+  }
+  const used = new Set();
+  if (state.player) for (const c of state.player.body) used.add(keyOf(c));
+  if (state.ai) for (const c of state.ai.body) used.add(keyOf(c));
+  for (const f of state.food) used.add(keyOf(f));
+  const free = [];
+  for (let i = 0; i < TOTAL; i++) {
+    if (used.has(i) || state.obstacles.has(i)) continue;
+    free.push(i);
+  }
+  if (free.length === 0) return null;
+  const idx = free[Math.floor(Math.random() * free.length)];
+  return { x: idx % COLS, y: (idx / COLS) | 0 };
+}
+
+function replenishFood() {
+  while (state.food.length < state.foodCount) {
+    const f = spawnOneFood();
+    if (!f) break;
+    state.food.push(f);
+  }
+}
+
+/* =========================================================
+ * 12. AI 决策
+ * ======================================================= */
+function safestFallbackDir(snake, other) {
+  const start = snake.head;
+  let maxSpace = -1, dir = null;
+  for (const d of DIRS) {
+    const nh = advancePos(start, d);
+    if (!inBounds(nh)) continue;
+    if (state.obstacles.has(keyOf(nh))) continue;
+    const grow = state.food.some(f => same(f, nh));
+    const simBody = simulateBody(snake, d, grow);
+    if (containsCell(simBody.slice(1), nh)) continue;
+    if (containsCell(other.body, nh)) continue;
+    const space = floodFill(nh, simBody, other.body);
+    if (space > maxSpace) { maxSpace = space; dir = d; }
+  }
+  return dir;
+}
+
+function computeAIDir(snake, other, algoValue, cfg, aggressiveness) {
+  if (algoValue === 'random') {
+    const d = randomWalkDir(snake, other);
+    if (d) return d;
+    return safestFallbackDir(snake, other);
+  }
+
+  if (algoValue === 'avoid') {
+    const d = computeAvoidDir(snake, other, cfg, aggressiveness);
+    if (d) return d;
+    return safestFallbackDir(snake, other);
+  }
+
+  const search = SEARCHERS[algoValue] || searchBFS;
+  const start = snake.head;
+  const bodyLen = snake.body.length;
+  const aggr = clamp01(aggressiveness);
+
+  const minSafeSpace = Math.round(bodyLen + 2 + (1 - aggr) * 4);
+  const maxExtraDist = Math.round((1 - aggr) * 2);
+
+  const candidates = [];
+  for (const food of state.food) {
+    const path = search(start, food, snake, other, cfg.searchLimit);
+    if (!path || path.length === 0) continue;
+
+    const first = path[0];
+    const nextHead = advancePos(start, first);
+    const grow = same(nextHead, food);
+    const simBody = simulateBody(snake, first, grow);
+    const space = floodFill(nextHead, simBody, other.body);
+
+    candidates.push({
+      dir: first,
+      dist: path.length,
+      space,
+      grow,
+      safe: space >= minSafeSpace,
+    });
+  }
+
+  if (candidates.length === 0) {
+    return safestFallbackDir(snake, other);
+  }
+
+  const safeCands = candidates.filter(c => c.safe);
+
+  const eatNow = safeCands.filter(c => c.grow);
+  if (eatNow.length > 0) {
+    let best = eatNow[0];
+    for (const c of eatNow) if (c.space > best.space) best = c;
+    return best.dir;
+  }
+
+  if (safeCands.length > 0) {
+    let minDist = Infinity;
+    for (const c of safeCands) if (c.dist < minDist) minDist = c.dist;
+
+    const cutoff = minDist + maxExtraDist;
+    let best = null;
+    for (const c of safeCands) {
+      if (c.dist > cutoff) continue;
+      if (best === null) { best = c; continue; }
+      if (c.space > best.space) best = c;
+      else if (c.space === best.space && c.dist < best.dist) best = c;
+    }
+    if (best) return best.dir;
+  }
+
+  if (aggr > 0.6) {
+    let best = candidates[0];
+    for (const c of candidates) if (c.dist < best.dist) best = c;
+    return best.dir;
+  }
+
+  return safestFallbackDir(snake, other);
+}
+
+/* =========================================================
+ * 13. 输入
+ * ======================================================= */
+function pushInput(dir) {
+  const q = state.inputQueue;
+  const last = q.length > 0 ? q[q.length - 1] : state.player.dir;
+  if (dir.x === -last.x && dir.y === -last.y) return;
+  if (dir.x === last.x  && dir.y === last.y)  return;
+  if (q.length >= 2) q.shift();
+  q.push(dir);
+}
+
+const KEY_MAP = {
+  ArrowUp:   { x: 0, y: -1 }, w: { x: 0, y: -1 }, W: { x: 0, y: -1 },
+  ArrowDown: { x: 0, y:  1 }, s: { x: 0, y:  1 }, S: { x: 0, y:  1 },
+  ArrowLeft: { x: -1, y: 0 }, a: { x: -1, y: 0 }, A: { x: -1, y: 0 },
+  ArrowRight:{ x: 1,  y: 0 }, d: { x: 1,  y: 0 }, D: { x: 1,  y: 0 },
+};
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ') {
+    e.preventDefault();
+    if (state.running) togglePause();
+    return;
+  }
+  const dir = KEY_MAP[e.key];
+  if (!dir) return;
+  e.preventDefault();
+  if (!state.running || state.paused) return;
+  if (state.mode !== 'pve') return;
+  pushInput(dir);
+});
+
+/* =========================================================
+ * 14. 渲染
+ * ======================================================= */
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = '#1e1e24';
+  ctx.lineWidth = 0.6;
+  ctx.beginPath();
+  for (let i = 0; i <= COLS; i++) {
+    ctx.moveTo(i * GRID + 0.5, 0);
+    ctx.lineTo(i * GRID + 0.5, canvas.height);
+  }
+  for (let j = 0; j <= ROWS; j++) {
+    ctx.moveTo(0, j * GRID + 0.5);
+    ctx.lineTo(canvas.width, j * GRID + 0.5);
+  }
+  ctx.stroke();
+
+  if (state.obstacles.size > 0) {
+    ctx.fillStyle = '#2c2c36';
+    ctx.strokeStyle = '#3a3a48';
+    ctx.lineWidth = 0.8;
+    state.obstacles.forEach(k => {
+      const x = k % COLS, y = (k / COLS) | 0;
+      ctx.fillRect(x * GRID + 1, y * GRID + 1, GRID - 2, GRID - 2);
+      ctx.strokeRect(x * GRID + 1.5, y * GRID + 1.5, GRID - 3, GRID - 3);
+    });
+  }
+
+  if (state.boundaryWrap) {
+    ctx.strokeStyle = 'rgba(150, 200, 230, 0.35)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 6]);
+    ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+    ctx.setLineDash([]);
+  }
+
+  ctx.save();
+  ctx.shadowColor = '#22ff66';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#44ff77';
+  for (const f of state.food) {
+    ctx.fillRect(f.x * GRID + 3, f.y * GRID + 3, GRID - 6, GRID - 6);
+  }
+  ctx.restore();
+
+  if (state.player) drawSnake(state.player);
+  if (state.ai) drawSnake(state.ai);
+}
+
+function drawSnake(snake) {
+  const len = snake.body.length;
+  ctx.fillStyle = snake.color;
+  for (let i = len - 1; i >= 0; i--) {
+    const seg = snake.body[i];
+    const t = i / len;
+    const scale = Math.max(0.3, 1 - t * 0.6);
+    const size = Math.max(5, (GRID - 2) * scale);
+    const off = (GRID - size) / 2;
+    ctx.globalAlpha = 1 - t * 0.35;
+    ctx.fillRect(seg.x * GRID + off, seg.y * GRID + off, size, size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* =========================================================
+ * 15. 震动
+ * ======================================================= */
+let shakeRaf = null;
+function shake(intensity, duration) {
+  if (shakeRaf !== null) cancelAnimationFrame(shakeRaf);
+  const t0 = performance.now();
+  const tick = (now) => {
+    const t = (now - t0) / duration;
+    if (t >= 1) {
+      shakeWrap.style.transform = '';
+      shakeRaf = null;
+      return;
+    }
+    const x = (Math.random() - 0.5) * intensity;
+    const y = (Math.random() - 0.5) * intensity;
+    shakeWrap.style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`;
+    shakeRaf = requestAnimationFrame(tick);
+  };
+  shakeRaf = requestAnimationFrame(tick);
+}
+
+/* =========================================================
+ * 16. 一回合
+ * ======================================================= */
+function gameTick() {
+  const player = state.player;
+  const ai = state.ai;
+
+  if (state.mode === 'pve') {
+    if (state.inputQueue.length > 0) {
+      const nd = state.inputQueue.shift();
+      if (!(nd.x === -player.dir.x && nd.y === -player.dir.y)) {
+        player.dir = nd;
+      }
+    }
+  } else {
+    const greenCfg = DIFFICULTY[diffGreenSel.value] || DIFFICULTY.normal;
+    const d = computeAIDir(player, ai, algoGreenSel.value, greenCfg, readAggr(aggrGreenInp));
+    if (d) player.dir = d;
+  }
+
+  const blueCfg = DIFFICULTY[diffSelect.value] || DIFFICULTY.normal;
+  const d2 = computeAIDir(ai, player, algoSelect.value, blueCfg, readAggr(aggrBlueInp));
+  if (d2) ai.dir = d2;
+
+  const pNext = player.nextHead();
+  const aNext = ai.nextHead();
+
+  const pGrow = state.food.some(f => same(f, pNext));
+  const aGrow = state.food.some(f => same(f, aNext));
+
+  const pSelf = player.bodyAfterMove(pGrow);
+  const aSelf = ai.bodyAfterMove(aGrow);
+
+  let pDead =
+    !inBounds(pNext) ||
+    state.obstacles.has(keyOf(pNext)) ||
+    containsCell(pSelf, pNext) ||
+    containsCell(aSelf, pNext);
+
+  let aDead =
+    !inBounds(aNext) ||
+    state.obstacles.has(keyOf(aNext)) ||
+    containsCell(aSelf, aNext) ||
+    containsCell(pSelf, aNext);
+
+  let headOnHead = false;
+  if (same(pNext, aNext) && !pDead && !aDead) {
+    headOnHead = true;
+    const pl = player.body.length;
+    const al = ai.body.length;
+    if (pl > al) aDead = true;
+    else if (al > pl) pDead = true;
+    else { pDead = true; aDead = true; }
+  }
+
+  if (pDead || aDead) {
+    endRound(pDead, aDead, headOnHead);
+    return;
+  }
+
+  if (pGrow || aGrow) shake(16, 130);
+
+  if (pGrow) {
+    state.eaten.player++;
+    setCanvasGlow('red', { duration: 100 });
+  }
+  if (aGrow) {
+    state.eaten.ai++;
+    setCanvasGlow('blue', { duration: 100 });
+  }
+
+  state.food = state.food.filter(f => !same(f, pNext) && !same(f, aNext));
+  replenishFood();
+
+  player.move(pGrow);
+  ai.move(aGrow);
+
+  render();
+  updateHUD();
+}
+
+/* =========================================================
+ * 17. 回合结束
+ * ======================================================= */
+function endRound(pDead, aDead, headOnHead) {
+  state.running = false;
+  clearTimeout(state.timer);
+  state.timer = null;
+
+  startBtn.disabled = false;
+  startBtn.textContent = '开始游戏';
+  startBtn.classList.remove('paused');
+  setSettingsLocked(false);
+
+  let msg;
+  if (pDead && aDead) {
+    msg = headOnHead ? '💥 头对头等长 · 平局' : '💥 同归于尽 · 平局';
+  } else if (pDead) {
+    state.wins.ai++;
+    msg = headOnHead ? '🏆 头对头蓝蛇更长 · 蓝蛇获胜' : '🏆 蓝蛇获胜';
+  } else {
+    state.wins.player++;
+    msg = headOnHead ? '🏆 头对头红蛇更长 · 红蛇获胜' : '🏆 红蛇获胜';
+  }
+
+  shake(14, 260);
+
+  if (pDead && aDead) setCanvasGlow('green', { pulse: true });
+  else if (pDead) setCanvasGlow('blue', { pulse: true });
+  else setCanvasGlow('red', { pulse: true });
+
+  setStatus(`${msg}\n胜场  红 ${state.wins.player} : ${state.wins.ai} 蓝`);
+  render();
+  updateHUD();
+}
+
+/* =========================================================
+ * 18. 调度
+ * ======================================================= */
+function scheduleStep() {
+  const step = () => {
+    if (!state.running) return;
+    if (!state.paused) gameTick();
+    if (state.running) state.timer = setTimeout(step, currentInterval());
+  };
+  state.timer = setTimeout(step, currentInterval());
+}
+
+/* =========================================================
+ * 19. 状态文案
+ * ======================================================= */
+function runningStatusText() {
+  const mapName = MAP_DEFS[state.mapId] ? MAP_DEFS[state.mapId].name : '地图';
+  const wrapTag = state.boundaryWrap ? ' · 循环边界' : '';
+  if (state.mode === 'pve') {
+    return `游戏进行中 · ${mapName}${wrapTag} · 蓝蛇 ${ALGO_LABEL[algoSelect.value]}`;
+  }
+  return `${mapName}${wrapTag}\n红:${ALGO_LABEL[algoGreenSel.value]}  vs  蓝:${ALGO_LABEL[algoSelect.value]}`;
+}
+
+/* =========================================================
+ * 20. 开始 / 暂停 / 重置
+ * ======================================================= */
+function startGame() {
+  syncModeFromDOM();
+  state.boundaryWrap = boundaryWrapSel.value === 'on';
+  clearTimeout(state.timer);
+  resetRound();
+
+  state.running = true;
+  state.paused = false;
+  startBtn.disabled = false;
+  startBtn.textContent = '暂停';
+  startBtn.classList.remove('paused');
+  setSettingsLocked(true);
+
+  clearCanvasGlow();
+  showStartOverlay(false);
+
+  setStatus(runningStatusText());
+  scheduleStep();
+}
+
+function togglePause() {
+  if (!state.running) return;
+  state.paused = !state.paused;
+  if (state.paused) {
+    clearTimeout(state.timer);
+    state.timer = null;
+    startBtn.textContent = '继续';
+    startBtn.classList.add('paused');
+    setStatus('⏸ 已暂停（空格继续）');
+  } else {
+    startBtn.textContent = '暂停';
+    startBtn.classList.remove('paused');
+    setStatus(runningStatusText());
+    scheduleStep();
+  }
+}
+
+function resetAll() {
+  clearTimeout(state.timer);
+  state.timer = null;
+  state.running = false;
+  state.paused = false;
+
+  state.eaten = { player: 0, ai: 0 };
+  state.wins  = { player: 0, ai: 0 };
+
+  startBtn.disabled = false;
+  startBtn.textContent = '开始游戏';
+  startBtn.classList.remove('paused');
+  setSettingsLocked(false);
+
+  clearCanvasGlow();
+  showStartOverlay(true);
+
+  syncModeFromDOM();
+  resetRound();
+  updateHUD();
+  setStatus('已重置，等待开始');
+}
+
+function resetRound() {
+  state.inputQueue = [];
+  state.obstacles = buildObstacles(state.mapId);
+  const spawns = getSpawns(state.mapId);
+
+  state.player = new Snake(spawns.red.body, '#e05555', spawns.red.dir);
+  state.ai = new Snake(spawns.blue.body, '#5588cc', spawns.blue.dir);
+
+  state.food = [];
+  replenishFood();
+  render();
+}
+
+/* =========================================================
+ * 21. HUD
+ * ======================================================= */
+function updateHUD() {
+  pScoreEl.textContent = state.eaten.player;
+  aiScoreEl.textContent = state.eaten.ai;
+}
+function setStatus(msg) { statusEl.textContent = msg; }
+
+/* =========================================================
+ * 22. 地图卡片
+ * ======================================================= */
+function drawMapThumb(canvasEl, mapId) {
+  const c = canvasEl.getContext('2d');
+  const W = canvasEl.width, H = canvasEl.height;
+  const cellW = W / COLS, cellH = H / ROWS;
+
+  c.fillStyle = '#0a0a10';
+  c.fillRect(0, 0, W, H);
+
+  const obs = buildObstacles(mapId);
+  c.fillStyle = '#3a3a48';
+  obs.forEach(k => {
+    const x = k % COLS, y = (k / COLS) | 0;
+    c.fillRect(x * cellW, y * cellH, cellW + 0.4, cellH + 0.4);
+  });
+
+  const sp = getSpawns(mapId);
+  c.fillStyle = '#e05555';
+  sp.red.body.forEach(p => {
+    c.fillRect(p.x * cellW, p.y * cellH, cellW + 0.4, cellH + 0.4);
+  });
+  c.fillStyle = '#5588cc';
+  sp.blue.body.forEach(p => {
+    c.fillRect(p.x * cellW, p.y * cellH, cellW + 0.4, cellH + 0.4);
+  });
+}
+
+function buildMapList() {
+  MAP_IDS.forEach(id => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'map-card';
+    card.dataset.mapId = id;
+
+    const thumb = document.createElement('canvas');
+    thumb.width = 96;
+    thumb.height = 96;
+    thumb.className = 'map-thumb';
+
+    const info = document.createElement('div');
+    info.className = 'map-info';
+    info.innerHTML = `
+      <div class="map-name">${MAP_DEFS[id].name}</div>
+      <div class="map-desc">${MAP_DEFS[id].desc}</div>
+    `;
+
+    card.appendChild(thumb);
+    card.appendChild(info);
+    mapListEl.appendChild(card);
+
+    drawMapThumb(thumb, id);
+
+    card.addEventListener('click', () => {
+      if (state.running) return;
+      selectMap(id);
+    });
+  });
+  selectMap(state.mapId, false);
+}
+
+function selectMap(id, doReset = true) {
+  state.mapId = id;
+  mapListEl.querySelectorAll('.map-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.mapId === id);
+  });
+  if (doReset && !state.running) {
+    resetRound();
+    setStatus('已切换地图，等待开始');
+  }
+}
+
+/* =========================================================
+ * 23. 事件绑定
+ * ======================================================= */
+startBtn.onclick = () => {
+  if (!state.running) startGame();
+  else togglePause();
+};
+
+resetBtn.onclick = resetAll;
+
+collapseBtn.onclick = () => {
+  const collapsed = controlPanel.classList.toggle('collapsed');
+  collapseBtn.title = collapsed ? '展开面板' : '收起面板';
+};
+
+mapCollapseBtn.onclick = () => {
+  const collapsed = mapPanel.classList.toggle('collapsed');
+  mapCollapseBtn.title = collapsed ? '展开地图面板' : '收起地图面板';
+};
+
+gameModeSel.onchange = () => { syncModeFromDOM(); };
+
+aggrGreenInp.oninput = () => { aggrGreenTxt.textContent = aggrGreenInp.value; };
+aggrBlueInp.oninput  = () => { aggrBlueTxt.textContent  = aggrBlueInp.value;  };
+
+boundaryWrapSel.onchange = () => {
+  if (state.running) {
+    boundaryWrapSel.value = state.boundaryWrap ? 'on' : 'off';
+    return;
+  }
+  state.boundaryWrap = boundaryWrapSel.value === 'on';
+  render();
+  setStatus(state.boundaryWrap ? '边界循环已开启' : '边界循环已关闭');
+};
+
+foodSlider.oninput = () => {
+  state.foodCount = Number(foodSlider.value);
+  foodText.textContent = state.foodCount;
+  if (!state.running) return;
+  if (state.food.length > state.foodCount) {
+    state.food.length = state.foodCount;
+  } else {
+    replenishFood();
+  }
+  render();
+};
+
+speedSlider.oninput = () => {
+  speedText.textContent = speedSlider.value;
+  if (state.running && !state.paused) {
+    clearTimeout(state.timer);
+    scheduleStep();
+  }
+};
+
+[algoGreenSel, algoSelect].forEach(sel => {
+  sel.addEventListener('change', () => {
+    updateAlgoSelectTitle(sel);
+    updateAlgoDependentControls();
+  });
+  updateAlgoSelectTitle(sel);
+});
+
+/* =========================================================
+ * 24. 启动
+ * ======================================================= */
+buildMapList();
+syncModeFromDOM();
+state.boundaryWrap = boundaryWrapSel.value === 'on';
+resetRound();
+updateHUD();
+speedText.textContent = speedSlider.value;
+aggrGreenTxt.textContent = aggrGreenInp.value;
+aggrBlueTxt.textContent  = aggrBlueInp.value;
+updateAlgoDependentControls();
+showStartOverlay(true);
+setStatus('等待开始');
+
+})();
+</script>
+</body>
+</html>
